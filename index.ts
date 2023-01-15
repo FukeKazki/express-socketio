@@ -4,17 +4,39 @@ import { Server } from "socket.io";
 
 const app = express();
 app.set('view engine', 'ejs');
+// json使えるようにする
+app.use(express.json());
 const httpServer = createServer(app);
 const io = new Server(httpServer, { /* options */ });
 
-const roomList: any[] = [];
-const userList: any[] = [];
+type User = {
+  id: string;
+  name: string;
+}
+
+type Room = {
+  id: string;
+  users: User[];
+  comments: string[];
+}
+
+const roomList: Room[] = []; // Mapつかってidで一意にするかRedis使って保存するとよさそう
+// const userList: User[] = []; // いらないかも
 
 app.get("/", (req, res) => {
   res.render("top", {
     title: 'あひ'
   });
 });
+
+// app.post("/create", (req, res) => {
+//   console.log(req.body)
+
+//   res.json({
+//     message: 'success',
+//     roomId: '1234'
+//   })
+// })
 
 const generateRoomId = () => {
   return 'abcd'
@@ -30,20 +52,18 @@ function getNextTurnUserIndex(room: any) {
 io.on("connection", (socket) => {
   socket.on("create", async (data) => {
     const roomId = generateRoomId();
-    const user = {
+    const user: User = {
       id: socket.id,
       name: data.userName,
-      roomId
     }
-    const room = {
+    const room: Room = {
       id: roomId,
       users: [user],
-      turnUserIndex: 0,
-      posts: []
+      comments: []
     }
 
     roomList.push(room);
-    userList.push(user);
+    // userList.push(user);
 
     socket.join(roomId);
 
@@ -60,39 +80,46 @@ io.on("connection", (socket) => {
     }
     const user = { id: socket.id, name: data.userName, roomId: data.roomId };
     roomList[roomIndex].users.push(user);
-    userList.push(user);
+    // userList.push(user);
     socket.join(roomList[roomIndex].id);
     io.to(roomList[roomIndex].id).emit("updateRoom", roomList[roomIndex]);
   });
-  // しりとりの単語を送信
-  socket.on("post", (input) => {
-    const user = userList.find((u) => u.id == socket.id);
-    const roomIndex = roomList.findIndex((r) => r.id == user.roomId);
-    const room = roomList[roomIndex];
 
-    // ターンプレイヤーかチェック
-    if (room.users[room.turnUserIndex].id != socket.id) {
-      io.to(socket.id).emit("notifyError", "あなたのターンではありません");
-      return;
-    }
-    // 正しい入力かチェック
-    // if (!checkWord(input, room.posts)) {
-    //   io.to(socket.id).emit(
-    //     "notifyError",
-    //     "入力が不正です。1つ前の単語の最後の文字から始まる単語を半角英字入力してください"
-    //   );
+  socket.on("comment", (data) => {
+    const roomId = data.roomId;
+    const room = roomList.find(v => v.id === roomId);
+    room?.comments.unshift(data.comment);
+    io.in(roomId).emit("updateRoom", room);
+  })
+  // しりとりの単語を送信
+  // socket.on("post", (input) => {
+    // const user = userList.find((u) => u.id == socket.id);
+    // const roomIndex = roomList.findIndex((r) => r.id == user.roomId);
+    // const room = roomList[roomIndex];
+
+    // // ターンプレイヤーかチェック
+    // if (room.users[room.turnUserIndex].id != socket.id) {
+    //   io.to(socket.id).emit("notifyError", "あなたのターンではありません");
     //   return;
     // }
-    // 単語を保存
-    roomList[roomIndex].posts.unshift({
-      userName: user.name,
-      word: input,
-    });
-    // ターンプレイヤーを次のユーザーに進める
-    roomList[roomIndex].turnUserIndex = getNextTurnUserIndex(room);
+    // // 正しい入力かチェック
+    // // if (!checkWord(input, room.posts)) {
+    // //   io.to(socket.id).emit(
+    // //     "notifyError",
+    // //     "入力が不正です。1つ前の単語の最後の文字から始まる単語を半角英字入力してください"
+    // //   );
+    // //   return;
+    // // }
+    // // 単語を保存
+    // roomList[roomIndex].posts.unshift({
+    //   userName: user.name,
+    //   word: input,
+    // });
+    // // ターンプレイヤーを次のユーザーに進める
+    // roomList[roomIndex].turnUserIndex = getNextTurnUserIndex(room);
 
-    io.in(room.id).emit("updateRoom", room);
-  });
+    // io.in(room.id).emit("updateRoom", room);
+  // });
   // socket.on("message", async (data) => {
   //   console.log(data.room)
   //   console.log(socket.rooms)

@@ -10,6 +10,7 @@
     <h1><%= title %>ejs</h1>
     <button id="create">create</button>
     <button id="enter">enter</button>
+    // https://alpinejs.dev/ alpinejsつかいたい
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI" crossorigin="anonymous"></script>
     <script type="module">
       const socket = io("http://localhost:3000");
@@ -26,9 +27,25 @@
         })
       });
 
-      const create = () => {
+      const create = async () => {
+        // const res = await fetch('/create', {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json'
+        //   },
+        //   body: JSON.stringify({
+        //     userName: 'fukke001'
+        //   })
+        // }).then(data => data.json())
+        // console.log(res)
+        // if (res.message === 'success') {
+        //   socket.emit("join", {
+        //     userName: 'fukke001',
+        //     roomId: res.roomId
+        //   })
+        // }
         socket.emit("create", {
-          userName: 'fukke001'
+          userName: 'fukke001',
         })
       }
 
