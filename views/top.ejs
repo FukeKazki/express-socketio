@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TOPページ</title>
+  </head>
+  <body>
+    <h1><%= title %>ejs</h1>
+    <button id="create">create</button>
+    <button id="enter">enter</button>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI" crossorigin="anonymous"></script>
+    <script type="module">
+      const socket = io("http://localhost:3000");
+
+      socket.on("connect", () => {
+        console.log(socket.id); // x8WIv7-mJelg7on_ALbx
+
+        socket.on("updateRoom", data => {
+          console.log(data);
+        })
+
+        socket.on("notifyError", data => {
+          console.log(data)
+        })
+      });
+
+      const create = () => {
+        socket.emit("create", {
+          userName: 'fukke001'
+        })
+      }
+
+      const enter = () => {
+        socket.emit("enter", {
+          roomId: 'abcd',
+          userName: 'yuuko'
+        })
+      }
+
+      document.querySelector('#create').addEventListener('click', create);
+      document.querySelector('#enter').addEventListener('click', enter);
+    </script>
+  </body>
+</html>
