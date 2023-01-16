@@ -8,11 +8,16 @@
   </head>
   <body>
     <h1><%= title %>ejs</h1>
-    <button id="create">create</button>
+    <div x-data="{ userName: '' }">
+      <input type="text" placeholder="名前を教えてね" x-model="userName">
+      <button @click="createUser($data)">決定</button>
+    </div>
+
+    <button id="create" @click="create">ルーム作成</button>
     <button id="enter">enter</button>
-    // https://alpinejs.dev/ alpinejsつかいたい
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI" crossorigin="anonymous"></script>
-    <script type="module">
+    <script>
       const socket = io("http://localhost:3000");
 
       socket.on("connect", () => {
@@ -27,7 +32,15 @@
         })
       });
 
+      let userName = ''
+
+      function createUser (data) {
+        console.info("createUser")
+        userName = data.userName
+      }
+
       const create = async () => {
+        console.info("create")
         // const res = await fetch('/create', {
         //   method: 'POST',
         //   headers: {
@@ -45,7 +58,7 @@
         //   })
         // }
         socket.emit("create", {
-          userName: 'fukke001',
+          userName,
         })
       }
 

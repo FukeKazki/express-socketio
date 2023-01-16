@@ -12,6 +12,7 @@ const io = new Server(httpServer, { /* options */ });
 type User = {
   id: string;
   name: string;
+  roomId: string;
 }
 
 type Room = {
@@ -21,7 +22,7 @@ type Room = {
 }
 
 const roomList: Room[] = []; // Mapつかってidで一意にするかRedis使って保存するとよさそう
-// const userList: User[] = []; // いらないかも
+const userList: User[] = []; // mapこれもsockidから一意にするのがよさそう
 
 app.get("/", (req, res) => {
   res.render("top", {
@@ -29,42 +30,34 @@ app.get("/", (req, res) => {
   });
 });
 
-// app.post("/create", (req, res) => {
-//   console.log(req.body)
-
-//   res.json({
-//     message: 'success',
-//     roomId: '1234'
-//   })
-// })
+app.get("/list", (req, res) => {
+  return res.json(roomList)
+})
 
 const generateRoomId = () => {
   return 'abcd'
 }
 
-// 次のターンプレイヤーのindexを返却
-function getNextTurnUserIndex(room: any) {
-  return room.turnUserIndex == room.users.length - 1
-    ? 0 // 現在のindexが末尾の場合、次を0としてターンプレイヤーをループする
-    : room.turnUserIndex + 1;
-}
 
 io.on("connection", (socket) => {
-  socket.on("create", async (data) => {
+  socket.on("create", (data) => {
     const roomId = generateRoomId();
+    // ユーザーの作成
     const user: User = {
       id: socket.id,
       name: data.userName,
+      roomId
     }
+    // 部屋の作成
     const room: Room = {
       id: roomId,
       users: [user],
       comments: []
     }
 
+    // Roomに追加
     roomList.push(room);
-    // userList.push(user);
-
+    userList.push(user);
     socket.join(roomId);
 
     console.log(room)
@@ -72,62 +65,37 @@ io.on("connection", (socket) => {
 
     io.to(socket.id).emit("updateRoom", room);
   })
+
   socket.on("enter", (data) => {
     const roomIndex = roomList.findIndex((r) => r.id == data.roomId);
     if (roomIndex == -1) {
       io.to(socket.id).emit("notifyError", "部屋が見つかりません");
       return;
     }
-    const user = { id: socket.id, name: data.userName, roomId: data.roomId };
+    // ユーザーの作成
+    const user: User = { id: socket.id, name: data.userName, roomId: data.roomId };
+    userList.push(user);
     roomList[roomIndex].users.push(user);
-    // userList.push(user);
-    socket.join(roomList[roomIndex].id);
-    io.to(roomList[roomIndex].id).emit("updateRoom", roomList[roomIndex]);
+    socket.join(data.roomId);
+    io.to(data.roomId).emit("updateRoom", roomList[roomIndex]);
   });
 
   socket.on("comment", (data) => {
     const roomId = data.roomId;
     const room = roomList.find(v => v.id === roomId);
-    room?.comments.unshift(data.comment);
-    io.in(roomId).emit("updateRoom", room);
+    // room?.comments.unshift(data.comment);
+    io.in(roomId).emit("comment", data.comment);
   })
-  // しりとりの単語を送信
-  // socket.on("post", (input) => {
-    // const user = userList.find((u) => u.id == socket.id);
-    // const roomIndex = roomList.findIndex((r) => r.id == user.roomId);
-    // const room = roomList[roomIndex];
 
-    // // ターンプレイヤーかチェック
-    // if (room.users[room.turnUserIndex].id != socket.id) {
-    //   io.to(socket.id).emit("notifyError", "あなたのターンではありません");
-    //   return;
-    // }
-    // // 正しい入力かチェック
-    // // if (!checkWord(input, room.posts)) {
-    // //   io.to(socket.id).emit(
-    // //     "notifyError",
-    // //     "入力が不正です。1つ前の単語の最後の文字から始まる単語を半角英字入力してください"
-    // //   );
-    // //   return;
-    // // }
-    // // 単語を保存
-    // roomList[roomIndex].posts.unshift({
-    //   userName: user.name,
-    //   word: input,
-    // });
-    // // ターンプレイヤーを次のユーザーに進める
-    // roomList[roomIndex].turnUserIndex = getNextTurnUserIndex(room);
-
-    // io.in(room.id).emit("updateRoom", room);
-  // });
-  // socket.on("message", async (data) => {
-  //   console.log(data.room)
-  //   console.log(socket.rooms)
-  //   const room = data.room;
-  //   await socket.join(room)
-  //   // emit(イベント名, データ)
-  //   io.to(room).emit('hello', 'world')
-  // })
+  socket.on("disconnect", (data) => {
+    const user = userList.find(v => v.id === socket.id)
+    if (!user) return;
+    const room = roomList.find(v => v.id === user.roomId)
+    if (!room) return;
+    io.to(room.id).emit("leave", "まるまるさんがぬけたよ")
+    // TODO: room.usersから削除
+    io.to(room.id).emit("updateRoom", room);
+  })
 });
 
 httpServer.listen(3000);
