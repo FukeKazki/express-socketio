@@ -1,13 +1,20 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import cors from "cors";
 
 const app = express();
 app.set('view engine', 'ejs');
 // json使えるようにする
 app.use(express.json());
+app.use(cors())
 const httpServer = createServer(app);
-const io = new Server(httpServer, { /* options */ });
+const io = new Server(httpServer, {
+  cors: {
+    origin: 'http://localhost:4200',
+    methods: ["GET", "POST"]
+  }
+});
 
 type User = {
   id: string;
@@ -82,8 +89,6 @@ io.on("connection", (socket) => {
 
   socket.on("comment", (data) => {
     const roomId = data.roomId;
-    const room = roomList.find(v => v.id === roomId);
-    // room?.comments.unshift(data.comment);
     io.in(roomId).emit("comment", data.comment);
   })
 
